@@ -36,9 +36,10 @@ class Scopus(object):
         # Authentication
         self.key = self.api_key()
 
+        self.abstract_retrieval = AbstractRetrieval(self)
+        self.article_retrieval = ArticleRetrieval(self)
         self.authentication = Authentication(self)
-        self.abstract_retrieval = Abstract_Retrieval(self)
-        self.bibliography_retrieval = Bibliography_Retrieval(self)
+        self.bibliography_retrieval = BibliographyRetrieval(self)
 
     def api_key(self):
         with open('api_key.txt', 'r') as file:
@@ -130,7 +131,7 @@ class Scopus(object):
         print('Total results: ' + results['opensearch:totalResults'])
 
 
-class Abstract_Retrieval(object):
+class AbstractRetrieval(object):
     """
 
     """
@@ -154,8 +155,42 @@ class Abstract_Retrieval(object):
 
     def _abstract_from_json(self, json):
         core_data = json.get('coredata')
-        abstract = core_data.get('dc:description')
+        if core_data is not None:
+            abstract = core_data.get('dc:description')
+        else:
+            abstract = None
         return abstract
+
+
+class ArticleRetrieval(object):
+    def __init__(self, parent):
+        self.parent = parent
+
+    def get_from_doi(self, doi, return_json=False):
+        return self._generic_retrieval(input_id=doi, input_type='doi', return_json=return_json)
+
+    def get_from_pii(self, pii, return_json=False):
+        return self._generic_retrieval(input_id=pii, input_type='pii', return_json=return_json)
+
+    def get_from_pubmed(self, pubmed_id, return_json=False):
+        return self._generic_retrieval(input_id=pubmed_id, input_type='pubmed_id', return_json=return_json)
+
+    def _generic_retrieval(self, input_id, input_type, return_json):
+        url = self.parent.base_url + '/article/' + input_type + '/' + input_id
+
+        header = self.parent.get_default_headers()
+        params = {}
+
+        resp = requests.get(url, headers=header, params=params)
+        retrieval_resp = resp.json().get('full-text-retrieval-response')
+
+        if retrieval_resp is None:
+            return None
+
+        if return_json:
+            return retrieval_resp
+        else:
+            return models.ScopusEntry(retrieval_resp)
 
 
 class Authentication(object):
@@ -180,27 +215,50 @@ class Authentication(object):
 
         resp = self.parent.session.get(self.url, headers=header, params=params)
 
-class Bibliography_Retrieval(object):
+
+class BibliographyRetrieval(object):
     def __init__(self, parent):
         self.parent = parent
 
     def get_from_doi(self, doi, return_json=False):
-        retrieval_resp = self.parent.make_abstract_get_request(doi=doi)
+        return self._generic_retrieval(input_id=doi, input_type='doi', return_json=return_json)
+
+    def get_from_pii(self, pii, return_json=False):
+        return self._generic_retrieval(input_id=pii, input_type='pii', return_json=return_json)
+
+    def get_from_pubmed(self, pubmed_id, return_json=False):
+        return self._generic_retrieval(input_id=pubmed_id, input_type='pubmed_id', return_json=return_json)
+
+    def _generic_retrieval(self, input_id, input_type, return_json):
+        url = self.parent.base_url + '/abstract/' + input_type + '/' + input_id
+
+        header = self.parent.get_default_headers()
+        params = {'view' : 'FULL'}
+
+        resp = requests.get(url, headers=header, params=params)
+        retrieval_resp = resp.json().get('abstracts-retrieval-response')
         ref_list = self._refs_from_json(retrieval_resp)
 
-        import pdb
-        pdb.set_trace()
+        if ref_list is None:
+            return None
 
         if return_json:
             return ref_list
         else:
-            return models.Bibliography(ref_list)
+            ref_object_list = []
+            for ref_json in ref_list:
+                ref_object_list.append(models.ScopusRef(ref_json))
+            return ref_object_list
 
     def _refs_from_json(self, json):
         # Descend through JSON tree to get references list
-        item = json.get('item')
-        bibrecord = item.get('bibrecord')
-        tail = bibrecord.get('tail')
-        bibliography = tail.get('bibliography')
-        refs = bibliography.get('reference')
-        return refs
+        # At each step, need to make sure that the level exists.
+        # Otherwise, return None.
+        next_level = json
+        levels = ['item', 'bibrecord', 'tail', 'bibliography', 'reference']
+        x = 0
+        while next_level is not None and x < len(levels):
+            next_level = next_level.get(levels[x])
+            x += 1
+
+        return next_level
