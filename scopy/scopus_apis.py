@@ -19,14 +19,12 @@ http://dev.elsevier.com/interactive.html
 """
 
 # Standard imports
-import json
 
 # Third-party imports
 import requests
 
 # Local imports
-from scopy_errors import *
-import models
+from scopy import models
 
 
 class Scopus(object):

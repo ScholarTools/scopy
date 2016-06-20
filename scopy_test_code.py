@@ -1,4 +1,4 @@
-from scopus_apis import *
+from scopy.scopus_apis import *
 
 api = Scopus()
 
