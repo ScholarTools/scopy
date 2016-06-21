@@ -14,6 +14,7 @@ pubmed_id = '11826063'
 
 refs = api.bibliography_retrieval.get_from_pubmed(pubmed_id)
 
+# TODO: figure out why this is returning None
 entry = api.article_retrieval.get_from_doi(doi)
 
 import pdb

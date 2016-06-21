@@ -94,7 +94,7 @@ class Scopus(object):
 
         #TODO: Look for a failure here ...
         import pdb
-        pdb.set_trace()        
+        #pdb.set_trace()
         
         retrieval_resp = resp.json()['abstracts-retrieval-response']
 
