@@ -16,6 +16,7 @@ http://dev.elsevier.com/interactive.html
 --- TODOs ---
  * Look into increasing number of items per page in Scopus search.
 
+ * rename to apis, scopus is redundant
 """
 
 # Standard imports
@@ -24,19 +25,30 @@ http://dev.elsevier.com/interactive.html
 import requests
 
 # Local imports
-from scopy import models
+from . import models
+from . import config
 
 
 class Scopus(object):
+    
+    """
+    Attributes
+    ----------
+    
+    """
+    
     def __init__(self):
         self.base_url = 'http://api.elsevier.com/content'
 
         # Authentication
-        self.key = self.api_key()
+        self.key = config.api_key
 
         self.abstract_retrieval = AbstractRetrieval(self)
         self.article_retrieval = ArticleRetrieval(self)
+
+        #This doesn't look like it is currently being used        
         self.authentication = Authentication(self)
+
         self.bibliography_retrieval = BibliographyRetrieval(self)
 
     def api_key(self):
@@ -76,6 +88,14 @@ class Scopus(object):
         params = {'view' : 'FULL'}
 
         resp = requests.get(url, headers=header, params=params)
+
+        #Removed last bits of the IP
+        #401 - '{"service-error":{"status":{"statusCode":"AUTHENTICATION_ERROR","statusText":"Client IP Address: 24.211.***.*** does not resolve to an account"}}}'
+
+        #TODO: Look for a failure here ...
+        import pdb
+        pdb.set_trace()        
+        
         retrieval_resp = resp.json()['abstracts-retrieval-response']
 
         return retrieval_resp
@@ -161,6 +181,11 @@ class AbstractRetrieval(object):
 
 
 class ArticleRetrieval(object):
+    
+    """
+        
+    """
+    
     def __init__(self, parent):
         self.parent = parent
 
@@ -192,6 +217,11 @@ class ArticleRetrieval(object):
 
 
 class Authentication(object):
+    
+    """
+        
+    """
+    
     def __init__(self, parent):
         self.parent = parent
         self.url = 'http://api.elsevier.com/authenticate/?platform=SCOPUS'
