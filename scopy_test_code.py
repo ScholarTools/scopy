@@ -14,7 +14,7 @@ print(abs)
 #refs = api.bibliography_retrieval.get_from_doi(doi)
 
 pubmed_id = '11826063'
-pubmed_id = '3806812' #Doesn't work!
+pubmed_id = '3806812' #Doesn't work! perhaps via search?
 
 refs = api.bibliography_retrieval.get_from_pubmed(pubmed_id)
 

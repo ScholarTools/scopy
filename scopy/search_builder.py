@@ -4,7 +4,7 @@ Still trying to decide on the design of this ...
 """
 
 #JAH: Perhaps we want to expose each field as a class?
-#Also, provide printing of documentation
+#TODO: Also provide convenience methods that group search fields
 #i.e. -> method to print common entries
 #     -> method to print identifier fields
 # authors, journal stuffs, paper stuffs (year, volume, issue, page #s)
@@ -18,7 +18,9 @@ Still trying to decide on the design of this ...
 #   - also tricky, the order of operations ...
 #
 #OR
-#import search_builder as s
+
+#*********************************************
+#import search_builder as s  
 # s.title('Testing') and s.auth('Smith') #less importing work, more tab complete
 
 
@@ -88,6 +90,8 @@ class SearchTerm(object):
 #NOTE: I am intentially buck the naming trend here, I might change these
 #to functions that create a SearchTerm 
 class pii(SearchTerm):
+    
+    #TODO: Move everything to class props except value    
     
     def __init__(self,text):
         self.key = 'PII'
