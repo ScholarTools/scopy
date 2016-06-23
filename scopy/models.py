@@ -47,9 +47,9 @@ class ResponseObject(object):
         #i.e. 
         if name in self.fields():
             new_name = name
-        elif name in renamed_fields:
+        elif name in self.renamed_fields:
             new_name = name #Do we want to do object lookup on the new name?
-            name = renamed_fields[name]
+            name = self.renamed_fields[name]
         else:
             raise AttributeError("'%s' object has no attribute '%s'" % (self.__class__.__name__, name))
           
@@ -101,12 +101,9 @@ class SearchResults(object):
         
         self.entries = [SearchEntry(x) for x in entries]        
         
-        
-        
-        import pdb
-        pdb.set_trace()
-        
+
         #TODO: Is a SearchEntry different than a ScopusEntry
+        # KSA: No. They're the same.
 
 
 
@@ -124,7 +121,7 @@ class SearchEntry(ResponseObject):
     #    'authors': Person.initialize_array,
     #    'identifiers': DocumentIdentifiers}    
     
-    def __init__(self, json, m):
+    def __init__(self, json):
         """
         Parameters
         ----------
@@ -136,10 +133,10 @@ class SearchEntry(ResponseObject):
     @classmethod
     def fields(cls):
         return ['citedby-count', 'author-count', 'pubmed-id', 'eid']
-        
+
         import pdb
         pdb.set_trace()
-        
+
         #TODO: We should just store the json, and then retrieve these as needed by the user
         #self.pubmed_id = json.get('pubmed-id')
         #self.eid = json.get('eid')
@@ -154,7 +151,7 @@ class SearchEntry(ResponseObject):
         
         #???? What does dc stand for?
         #What is @_fa??????
-        """
+        '''
         dict_keys(['prism:coverDate', 'citedby-count', 'pubmed-id', 'link', 
         'eid', 'prism:aggregationType', '@_fa', 'affiliation', 'subtype', 
         'prism:coverDisplayDate', 'prism:pageRange', 'prism:issn', 'dc:description', 
@@ -162,7 +159,7 @@ class SearchEntry(ResponseObject):
         'subtypeDescription', 'source-id', 'prism:volume', 
         'prism:doi', 'author-count', 'prism:url', 
         'dc:identifier', 'author', 'dc:title', 'intid'])   
-        """
+        '''
 
 class ScopusRef(object):
     def __init__(self, json):
@@ -247,10 +244,9 @@ class ScopusRef(object):
 
 
 class ScopusEntry(object):
-
     """
-    Where does this come from?
-    
+    These are populated by search results. Each result contains these fields.
+
     """
 
     def __init__(self, json):
@@ -273,7 +269,10 @@ class ScopusEntry(object):
         self._populate_fields(json)
 
     def _populate_fields(self, json):
+
         coredata = json.get('coredata')
+        if coredata is None:
+            coredata = json.get('entry')
 
         self.doi = coredata.get('prism:doi')
         self.eid = coredata.get('eid')

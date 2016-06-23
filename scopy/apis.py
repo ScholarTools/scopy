@@ -15,11 +15,10 @@ http://dev.elsevier.com/interactive.html
 
 --- TODOs ---
  * Look into increasing number of items per page in Scopus search.
-
- * rename to apis, scopus is redundant
 """
 
 # Standard imports
+from urllib.parse import quote
 
 # Third-party imports
 import requests
@@ -27,10 +26,10 @@ import requests
 # Local imports
 from . import models
 from . import config
+from scopy.scopy_errors import *
 
 
 class Scopus(object):
-    
     """
     Attributes
     ----------
@@ -59,7 +58,7 @@ class Scopus(object):
 
         return header
 
-    def make_abstract_get_request(self, url=None, doi=None):
+    def make_abstract_get_request(self, url=None, input_id=None, input_type=None):
         """
 
         Parameters
@@ -75,10 +74,9 @@ class Scopus(object):
 
         """
         if url is None:
-            if doi is not None:
-                url = self.base_url + '/abstract/doi/' + doi
-            else:
+            if input_id is None:
                 raise LookupError('Need to enter a URL or DOI')
+            url = self.base_url + '/abstract/' + input_type + '/' + input_id
 
         header = self._get_default_headers()
         params = {'view' : 'FULL'}
@@ -88,9 +86,10 @@ class Scopus(object):
         #Removed last bits of the IP
         #401 - '{"service-error":{"status":{"statusCode":"AUTHENTICATION_ERROR","statusText":"Client IP Address: 24.211.***.*** does not resolve to an account"}}}'
 
-        #TODO: Look for a failure here ...
-        import pdb
-        #pdb.set_trace()
+        if not resp.ok:
+            if resp.status_code == 401:
+                raise ConnectionRefusedError('Client IP Address does not resolve to an account')
+            raise ConnectionError('Failed to connect to Scopus')
         
         retrieval_resp = resp.json()['abstracts-retrieval-response']
 
@@ -152,7 +151,10 @@ class Scopus(object):
 
         resp = requests.get(url, headers=header, params=params)
         
-        #TODO: Verify that we are ok
+        if not resp.ok:
+            if resp.status_code == 401:
+                raise ConnectionRefusedError('Client IP Address does not resolve to an account')
+            raise ConnectionError('Failed to connect to Scopus')
            
         return models.SearchResults(resp.json()['search-results'])
         
@@ -168,14 +170,14 @@ class AbstractRetrieval(object):
     '''
     So it turns out that this Abstract request also returns a lot of other information,
     including title, author, publication, full bibliography, etc.
-    Does not return full text of article. See Article() class for that.
+    Does not return full text of article, see Article() class for that.
     This could be a catch-all get request to extract bibliography, etc.
     '''
     def __init__(self, parent):
         self.parent = parent
 
     def get_from_doi(self, doi):
-        retrieval_resp = self.parent.make_abstract_get_request(doi=doi)
+        retrieval_resp = self.parent.make_abstract_get_request(input_type='doi', input_id=doi)
         return self._abstract_from_json(retrieval_resp)
 
     def get_from_pii(self, pii):
@@ -193,11 +195,9 @@ class AbstractRetrieval(object):
 
 
 class ArticleRetrieval(object):
-    
     """
         
     """
-    
     def __init__(self, parent):
         self.parent = parent
 
@@ -205,7 +205,6 @@ class ArticleRetrieval(object):
         return self._generic_retrieval(input_id=doi, input_type='doi', return_json=return_json)
         
     def get_from_eid(self,eid,return_json=False):
-        
         """
         Parameters
         ----------
@@ -229,16 +228,27 @@ class ArticleRetrieval(object):
         """
         http://dev.elsevier.com/retrieval.html#!/Article_Retrieval/ArticleRetrieval
         """
-        
-        #TODO: Ensure that the input_id is a string and not numeric
-        
-        
+        # Make sure input_id is a string
+        if isinstance(input_id, int):
+            input_id = str(input_id)
+
+        input_id = quote(input_id)
+
         url = self.parent.base_url + '/article/' + input_type + '/' + input_id
 
         header = self.parent._get_default_headers()
         params = {}
 
         resp = requests.get(url, headers=header, params=params)
+        import pdb
+        pdb.set_trace()
+
+        # Verification of connection
+        if not resp.ok:
+            if resp.status_code in (401, 403):
+                raise ConnectionRefusedError('Client IP Address does not resolve to an account')
+            raise ConnectionError('Failed to connect to Scopus')
+
         retrieval_resp = resp.json().get('full-text-retrieval-response')
 
         if retrieval_resp is None:
@@ -279,12 +289,11 @@ class Authentication(object):
 
 
 class BibliographyRetrieval(object):
-    
     """
-        JAH: Yikes, how is this different than the AbstractRetrieval?
-        JAH: Why does abstract retrieval get to call the parent and not this one?    
+
     """
-    
+    # TODO: check if there is even an entry first before trying to get the refs
+
     def __init__(self, parent):
         self.parent = parent
 
@@ -298,14 +307,11 @@ class BibliographyRetrieval(object):
         return self._generic_retrieval(input_id=pubmed_id, input_type='pubmed_id', return_json=return_json)
 
     def _generic_retrieval(self, input_id, input_type, return_json):
-        url = self.parent.base_url + '/abstract/' + input_type + '/' + input_id
-
-        header = self.parent._get_default_headers()
-        params = {'view' : 'FULL'}
-
-        resp = requests.get(url, headers=header, params=params)
-        retrieval_resp = resp.json().get('abstracts-retrieval-response')
+        retrieval_resp = self.parent.make_abstract_get_request(input_type=input_type, input_id=input_id)
         ref_list = self._refs_from_json(retrieval_resp)
+
+        import pdb
+        pdb.set_trace()
 
         if ref_list is None:
             return None
@@ -323,10 +329,17 @@ class BibliographyRetrieval(object):
         # At each step, need to make sure that the level exists.
         # Otherwise, return None.
         next_level = json
-        levels = ['item', 'bibrecord', 'tail', 'bibliography', 'reference']
+        levels = ['item', 'bibrecord', 'tail', 'bibliography']
         x = 0
         while next_level is not None and x < len(levels):
             next_level = next_level.get(levels[x])
             x += 1
+
+        ref_count = next_level.get('@refcount')
+        if ref_count is not None:
+            if int(ref_count) == 0:
+                raise ReferencesNotFoundError('No references found. Possibly due to zero search results.')
+        else:
+            next_level = next_level.get('reference')
 
         return next_level

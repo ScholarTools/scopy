@@ -1,0 +1,3 @@
+
+class ReferencesNotFoundError(Exception):
+    pass

@@ -90,25 +90,26 @@ class SearchTerm(object):
 #NOTE: I am intentially buck the naming trend here, I might change these
 #to functions that create a SearchTerm 
 class pii(SearchTerm):
-    
-    #TODO: Move everything to class props except value    
+
+    key = 'PII'
+    description = 'Publication Item Identifier'
+    example = 'pii(S12345678) returns the document with the matching PII'
+    children = None
     
     def __init__(self,text):
-        self.key = 'PII'
         self.value = text
-        self.description = 'Publication Item Identifier'
-        self.example = 'pii(S12352348) returns the document with the matching PII'
-        self.children = None
+
 
 class ref(SearchTerm):
     
     def __init__(self,text):
         self.key = 'ref'
-        self.value = 'text'
+        self.value = text
         self.description = 'References'
         self.example = 'TODO'
         self.children = ['refauth','reftitle','refscrtitle','refpubyear','refpage'] #TODO: Not sure if these fields are case sensitive, examples are all caps
-        
+
+
 class subjarea(SearchTerm):
     
     #Does this work for tab complete? Yes!
@@ -117,7 +118,38 @@ class subjarea(SearchTerm):
     AGRI = 'AGRI'
     ARTS = 'ARTS'
     BIOC = 'BIOC'
-    
+
+    # Potential other versions:
+    agriculture = 'AGRI'
+    arts = 'ARTS'
+    biochemistry = 'BIOC'
+    genetics = 'BIOC'
+    molecular_biology = 'BIOC'
+    business = 'BUSI'
+    management = 'BUSI'
+    accounting = 'BUSI'
+    chemical_engineering = 'CENG'
+    chemistry = 'CHEM'
+    computer_science = 'COMP'
+    decision_sciences = 'DECI'
+    dentistry = 'DENT'
+    earth_science = 'EART'
+    economics = 'ECON'
+    energy = 'ENER'
+    engineering = 'ENGI'
+    environmental_science = 'ENVI'
+    health = 'HEAL'
+    immunology = 'IMMU'
+    microbiology = 'IMMU'
+    mathematics = 'MATH'
+    trade_publication = 'MEDI'
+    medicine = 'NEUR'
+    nursing = 'NURS'
+    pharmacology = 'PHAR'
+    psychology = 'PSYC'
+    social_sciences = 'SOCI'
+    veterinary = 'VETE'
+    multidisciplinary = 'MULT'
     
     def __init__(self,text):
 
@@ -129,8 +161,11 @@ class subjarea(SearchTerm):
         self.example = 'TODO'
         self.children = None
 
+
 class title_abs_key(SearchTerm):
-    
+
+    key = 'title-abs-key'
+
     def __init__(self,text):
         
         self.key = 'title-abs-key' #Notice the rename
@@ -138,9 +173,6 @@ class title_abs_key(SearchTerm):
         self.description = 'TODO'
         self.example = 'TODO'
         self.children = ['title','abs','key'] #these are sort of obvious
-        
-class
-
 
 
 
