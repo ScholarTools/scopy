@@ -1,11 +1,178 @@
-# Local imports
-from pypub.scrapers.base_objects import *
+"""
+
+"""
+
+#DC:
+#https://en.wikipedia.org/wiki/Dublin_Core
+#
+#PRISM
+#http://www.idealliance.org/specifications/prism-metadata-initiative
 
 
-class ScopusRef(BaseRef):
+
+class ResponseObject(object):
+    # I made this a property so that the user could change this processing
+    # if they wanted. For example, this would allow the user to return authors
+    # as just the raw json (from a document) rather than creating a list of
+    # Persons
+    object_fields = {}
+    
+    #Name mapping, keys are new, values are old
+    renamed_fields = {}
+
     def __init__(self, json):
-        super().__init__()
+        """
+        This class stores the raw JSON in case an attribute from this instance
+        is requested. The attribute is accessed via the __getattr__ method.
+
+        This design was chosen instead of one which tranfers each JSON object
+        key into an attribute. This design decision means that we don't spend
+        time populating an object where we only want a single attribute.
+        
+        Note that the request methods should also support returning the raw JSON.
+        """
+        self.json = json
+
+    def __getattr__(self, name):
+
+        """
+        By checking for the name in the list of fields, we allow returning
+        a "None" value for attributes that are not present in the JSON. By
+        forcing each class to define the fields that are valid we ensure that
+        spelling errors don't return none:
+        e.g. document.yeear <= instead of document.year
+        """
+        
+        #TODO: We need to support renaming
+        #i.e. 
+        if name in self.fields():
+            new_name = name
+        elif name in renamed_fields:
+            new_name = name #Do we want to do object lookup on the new name?
+            name = renamed_fields[name]
+        else:
+            raise AttributeError("'%s' object has no attribute '%s'" % (self.__class__.__name__, name))
+          
+        value = self.json.get(name)          
+          
+        #We don't call object construction methods on None values
+        if value is None:
+            return None
+        elif name in self.object_fields:
+            #Here we return the value after passing it to a method
+            #fh => function handle
+            #
+            #Only the value is explicitly passed in
+            #Any other information needs to be explicitly bound
+            #to the method
+            method_fh = self.object_fields[name]
+            return method_fh(value)
+        else:
+            return value
+
+            
+
+    @classmethod
+    def __dir__(cls):
+        d = set(dir(cls) + cls.fields())
+        d.remove('fields')
+        d.remove('object_fields')
+
+        return sorted(d)
+
+    @classmethod
+    def fields(cls):
+        """
+        This should be overloaded by the subclass.
+        """
+        return []
+
+
+class SearchResults(object):
+    
+    def __init__(self,json):
+        
+        #dict_keys(['opensearch:totalResults', 'opensearch:startIndex', 'entry', 'link', 'opensearch:Query', 'opensearch:itemsPerPage'])
+        
+        self.total_results = json.get('opensearch:totalResults')
+        self.items_per_page = json.get('opensearch:itemsPerPage')
+        
+        entries = json.get('entry') #list       
+        
+        self.entries = [SearchEntry(x) for x in entries]        
+        
+        
+        
+        import pdb
+        pdb.set_trace()
+        
+        #TODO: Is a SearchEntry different than a ScopusEntry
+
+
+
+#JAH: Need to create a parent response object like in Mendeley
+#Don't assign everything
+
+class SearchEntry(ResponseObject):
+    
+    """
+    It looks like the search entry is more minimal than information that can be obtained via other methods
+    """
+    
+    #TODO: Replace with relevant values for this class
+    #object_fields = {
+    #    'authors': Person.initialize_array,
+    #    'identifiers': DocumentIdentifiers}    
+    
+    def __init__(self, json, m):
+        """
+        Parameters
+        ----------
+        json : dict
+
+        """
+        super(SearchEntry, self).__init__(json)
+
+    @classmethod
+    def fields(cls):
+        return ['citedby-count', 'author-count', 'pubmed-id', 'eid']
+        
+        import pdb
+        pdb.set_trace()
+        
+        #TODO: We should just store the json, and then retrieve these as needed by the user
+        #self.pubmed_id = json.get('pubmed-id')
+        #self.eid = json.get('eid')
+        #self.link = json.get('link')      
+        #Links
+        #-----
+        #ref - Observed values include: self, author-affiliation, scopus, scopus-citedby
+        #href - the link value
+        #@_fa - ????
+        #
+        #e.g. {'@ref': 'self', '@href': 'http://api.elsevier.com/content/abstract/scopus_id/0023137155', '@_fa': 'true'}
+        
+        #???? What does dc stand for?
+        #What is @_fa??????
+        """
+        dict_keys(['prism:coverDate', 'citedby-count', 'pubmed-id', 'link', 
+        'eid', 'prism:aggregationType', '@_fa', 'affiliation', 'subtype', 
+        'prism:coverDisplayDate', 'prism:pageRange', 'prism:issn', 'dc:description', 
+        'prism:publicationName', 'prism:issueIdentifier', 'dc:creator', 
+        'subtypeDescription', 'source-id', 'prism:volume', 
+        'prism:doi', 'author-count', 'prism:url', 
+        'dc:identifier', 'author', 'dc:title', 'intid'])   
+        """
+
+class ScopusRef(object):
+    def __init__(self, json):
         self.authors = []
+        self.title = None
+        self.volume = None
+        self.issue = None
+        self.date = None
+        self.pages = None
+        self.publication = None
 
         self._populate_fields(json)
 
@@ -80,6 +247,12 @@ class ScopusRef(BaseRef):
 
 
 class ScopusEntry(object):
+
+    """
+    Where does this come from?
+    
+    """
+
     def __init__(self, json):
         self.doi = None
         self.eid = None

@@ -1,0 +1,1 @@
+Search,GET /search/scopus,http://api.elsevier.com/documentation/SCOPUSSearchAPI.wadl

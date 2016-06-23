@@ -1,4 +1,5 @@
 
 from .config_interface import Config
+config = Config() #This needs to follow the previous line to expose config to others
 
-config = Config()
+from .scopus_apis import Scopus

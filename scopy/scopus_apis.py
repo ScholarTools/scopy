@@ -37,8 +37,9 @@ class Scopus(object):
     
     """
     
+    base_url = 'http://api.elsevier.com/content'
+    
     def __init__(self):
-        self.base_url = 'http://api.elsevier.com/content'
 
         # Authentication
         self.key = config.api_key
@@ -51,12 +52,7 @@ class Scopus(object):
 
         self.bibliography_retrieval = BibliographyRetrieval(self)
 
-    def api_key(self):
-        with open('api_key.txt', 'r') as file:
-            key = file.read()
-        return key
-
-    def get_default_headers(self):
+    def _get_default_headers(self):
         header = dict()
         header['Accept'] = 'application/json'
         header['X-ELS-APIKey'] = self.key
@@ -84,7 +80,7 @@ class Scopus(object):
             else:
                 raise LookupError('Need to enter a URL or DOI')
 
-        header = self.get_default_headers()
+        header = self._get_default_headers()
         params = {'view' : 'FULL'}
 
         resp = requests.get(url, headers=header, params=params)
@@ -100,8 +96,11 @@ class Scopus(object):
 
         return retrieval_resp
 
-    def search(self, search_string, date_range=None):
+    def search(self, search_string, view = 'standard', date_range=None):
         '''
+
+        Documentation of function at:
+        http://api.elsevier.com/documentation/SCOPUSSearchAPI.wadl
 
         Parameters
         ----------
@@ -109,6 +108,12 @@ class Scopus(object):
             The search term.
         date_range : str
             Range of dates to search over.
+        view : str
+            {'standard','complete'}
+            See http://api.elsevier.com/documentation/search/SCOPUSSearchViews.htm
+            The standard is currently the default as this doesn't return
+            all of the possible information on a paper anyway, so let's make
+            the request slightly quicker
 
         Returns
         -------
@@ -129,24 +134,31 @@ class Scopus(object):
 
         # Attempts to increase items per page by using opensearch formatting.
         # Not working so far.
-        query_dict = dict()
-        query_dict['@searchTerms'] = search_string
-        query_dict['@itemsPerPage'] = 50
+        #query_dict = dict()
+        
+        #JAH: Where are these coming from? Why do we want to
+        #increase the # of results per page?
+        #query_dict['@searchTerms'] = search_string
+        #query_dict['@itemsPerPage'] = 50
 
         params = dict()
-        params['opensearch:Query'] = query_dict
+        #params['opensearch:Query'] = query_dict
 
         # Mandatory params
         params['query'] = search_string
-        params['view'] = 'COMPLETE'
+        params['view'] = view
         if date_range is not None:
             params['date'] = date_range
 
         resp = requests.get(url, headers=header, params=params)
-        results = resp.json()['search-results']
-        entry_list = results['entry']
+        
+        #TODO: Verify that we are ok
+           
+        return models.SearchResults(resp.json()['search-results'])
+        
+        #entry_list = results['entry']
 
-        print('Total results: ' + results['opensearch:totalResults'])
+        #print('Total results: ' + results['opensearch:totalResults'])
 
 
 class AbstractRetrieval(object):
@@ -191,6 +203,20 @@ class ArticleRetrieval(object):
 
     def get_from_doi(self, doi, return_json=False):
         return self._generic_retrieval(input_id=doi, input_type='doi', return_json=return_json)
+        
+    def get_from_eid(self,eid,return_json=False):
+        
+        """
+        Parameters
+        ----------
+        eid : Elsevier ID
+
+        Returns
+        -------
+        json or models.ScopusEntry        
+        """
+        
+        return self._generic_retrieval(input_id=eid, input_type='eid', return_json=return_json)
 
     def get_from_pii(self, pii, return_json=False):
         return self._generic_retrieval(input_id=pii, input_type='pii', return_json=return_json)
@@ -199,9 +225,17 @@ class ArticleRetrieval(object):
         return self._generic_retrieval(input_id=pubmed_id, input_type='pubmed_id', return_json=return_json)
 
     def _generic_retrieval(self, input_id, input_type, return_json):
+        
+        """
+        http://dev.elsevier.com/retrieval.html#!/Article_Retrieval/ArticleRetrieval
+        """
+        
+        #TODO: Ensure that the input_id is a string and not numeric
+        
+        
         url = self.parent.base_url + '/article/' + input_type + '/' + input_id
 
-        header = self.parent.get_default_headers()
+        header = self.parent._get_default_headers()
         params = {}
 
         resp = requests.get(url, headers=header, params=params)
@@ -245,6 +279,12 @@ class Authentication(object):
 
 
 class BibliographyRetrieval(object):
+    
+    """
+        JAH: Yikes, how is this different than the AbstractRetrieval?
+        JAH: Why does abstract retrieval get to call the parent and not this one?    
+    """
+    
     def __init__(self, parent):
         self.parent = parent
 
@@ -260,7 +300,7 @@ class BibliographyRetrieval(object):
     def _generic_retrieval(self, input_id, input_type, return_json):
         url = self.parent.base_url + '/abstract/' + input_type + '/' + input_id
 
-        header = self.parent.get_default_headers()
+        header = self.parent._get_default_headers()
         params = {'view' : 'FULL'}
 
         resp = requests.get(url, headers=header, params=params)
