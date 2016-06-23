@@ -1,13 +1,11 @@
+# Local imports
+from pypub.scrapers.base_objects import *
 
-class ScopusRef(object):
+
+class ScopusRef(BaseRef):
     def __init__(self, json):
+        super().__init__()
         self.authors = []
-        self.title = None
-        self.volume = None
-        self.issue = None
-        self.date = None
-        self.pages = None
-        self.publication = None
 
         self._populate_fields(json)
 
