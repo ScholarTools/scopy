@@ -1,4 +1,62 @@
 
+
+class SearchResults(object):
+    
+    def __init__(self,json):
+        
+        #dict_keys(['opensearch:totalResults', 'opensearch:startIndex', 'entry', 'link', 'opensearch:Query', 'opensearch:itemsPerPage'])
+        
+        self.total_results = json.get('opensearch:totalResults')
+        self.items_per_page = json.get('opensearch:itemsPerPage')
+        
+        entries = json.get('entry') #list       
+        
+        self.entries = [SearchEntry(x) for x in entries]        
+        
+        
+        
+        import pdb
+        pdb.set_trace()
+        
+        #TODO: Is a SearchEntry different than a ScopusEntry
+
+
+#JAH: Need to create a parent response object like in Mendeley
+#Don't assign everything
+
+class SearchEntry(object):
+    
+    """
+    It looks like the search is 
+    """
+    def __init__(self,json):
+        import pdb
+        pdb.set_trace()
+        
+        #TODO: We should just store the json, and then retrieve these as needed by the user
+        self.pubmed_id = json.get('pubmed-id')
+        self.eid = json.get('eid')
+        self.link = json.get('link')      
+        #Links
+        #-----
+        #ref - Observed values include: self, author-affiliation, scopus, scopus-citedby
+        #href - the link value
+        #@_fa - ????
+        #
+        #e.g. {'@ref': 'self', '@href': 'http://api.elsevier.com/content/abstract/scopus_id/0023137155', '@_fa': 'true'}
+        
+        #???? What does dc stand for?
+        #What is @_fa??????
+        """
+        dict_keys(['prism:coverDate', 'citedby-count', 'pubmed-id', 'link', 
+        'eid', 'prism:aggregationType', '@_fa', 'affiliation', 'subtype', 
+        'prism:coverDisplayDate', 'prism:pageRange', 'prism:issn', 'dc:description', 
+        'prism:publicationName', 'prism:issueIdentifier', 'dc:creator', 
+        'subtypeDescription', 'source-id', 'prism:volume', 
+        'prism:doi', 'author-count', 'prism:url', 
+        'dc:identifier', 'author', 'dc:title', 'intid'])   
+        """
+
 class ScopusRef(object):
     def __init__(self, json):
         self.authors = []
@@ -82,6 +140,12 @@ class ScopusRef(object):
 
 
 class ScopusEntry(object):
+
+    """
+    Where does this come from?
+    
+    """
+
     def __init__(self, json):
         self.doi = None
         self.eid = None
