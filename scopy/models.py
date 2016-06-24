@@ -8,6 +8,9 @@
 #PRISM
 #http://www.idealliance.org/specifications/prism-metadata-initiative
 
+from .utils import get_truncated_display_string as td
+from .utils import get_list_class_display as cld
+from .utils import property_values_to_string as pv
 
 
 class ResponseObject(object):
@@ -110,16 +113,60 @@ class SearchResults(object):
 #JAH: Need to create a parent response object like in Mendeley
 #Don't assign everything
 
+class SearchEntryLinks(object):
+    
+    def __init__(self, json):
+        #super(SearchEntryLinks, self).__init__(json)
+        
+        #TODO: We might just want to make this object right away, rather than inherting from response
+        #TODO: We need to be able to handle the links
+
+        #TODO: Use an input output mapping name
+
+        names = {'self':'self','author-affiliation':'author_affiliation','scopus':'scopus','scopus-citedby':'scopus_cited_by'}
+        
+        self.self = None
+        self.author_affiliation = None
+        self.scopus = None
+        self.scopus_cited_by = None
+        
+        
+        for temp in json:
+            if temp['@ref'] in names:
+                setattr(self,names[temp['@ref']],temp['@href'])
+                #TODO: otherwise raise an error
+
+
+       
+        #ref - Observed values include: self, author-affiliation, scopus, scopus-citedby
+        #href - the link value
+        #@_fa - ????
+        #
+        #e.g. {'@ref': 'self', '@href': 'http://api.elsevier.com/content/abstract/scopus_id/0023137155', '@_fa': 'true'}        
+        
+    def __repr__(self):
+        return pv(['self',self.self,'author_affiliation',self.author_affiliation,'scopus',self.scopus,'scopus-cited_by',self.scopus_cited_by])
+
+
 class SearchEntry(ResponseObject):
     
     """
     It looks like the search entry is more minimal than information that can be obtained via other methods
     """
     
+    object_fields = {'link':SearchEntryLinks}    
+    
     #TODO: Replace with relevant values for this class
     #object_fields = {
     #    'authors': Person.initialize_array,
     #    'identifiers': DocumentIdentifiers}    
+    
+    renamed_fields = {
+        'cover_date':'prism:coverDate',
+        'cited_by_count':'citedby-count',
+        'author_count':'author-count',
+        'pubmed_id':'pubmed-id',
+        'links':'link'}
     
     def __init__(self, json):
         """
@@ -132,10 +179,8 @@ class SearchEntry(ResponseObject):
 
     @classmethod
     def fields(cls):
-        return ['citedby-count', 'author-count', 'pubmed-id', 'eid']
+        return ['eid']
 
-        import pdb
-        pdb.set_trace()
 
         #TODO: We should just store the json, and then retrieve these as needed by the user
         #self.pubmed_id = json.get('pubmed-id')
@@ -143,11 +188,7 @@ class SearchEntry(ResponseObject):
         #self.link = json.get('link')      
         #Links
         #-----
-        #ref - Observed values include: self, author-affiliation, scopus, scopus-citedby
-        #href - the link value
-        #@_fa - ????
-        #
-        #e.g. {'@ref': 'self', '@href': 'http://api.elsevier.com/content/abstract/scopus_id/0023137155', '@_fa': 'true'}
+
         
         #???? What does dc stand for?
         #What is @_fa??????
@@ -160,6 +201,10 @@ class SearchEntry(ResponseObject):
         'prism:doi', 'author-count', 'prism:url', 
         'dc:identifier', 'author', 'dc:title', 'intid'])   
         '''
+        
+    def __repr__(self):
+        return pv(['cited_by_count',self.cited_by_count,
+        'eid',self.eid])
 
 class ScopusRef(object):
     def __init__(self, json):
