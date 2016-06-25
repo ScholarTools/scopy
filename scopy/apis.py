@@ -79,6 +79,8 @@ class Scopus(object):
             url = self.base_url + '/abstract/' + input_type + '/' + input_id
 
         header = self._get_default_headers()
+        
+        #http://api.elsevier.com/documentation/retrieval/AbstractRetrievalViews.htm
         params = {'view' : 'FULL'}
 
         resp = requests.get(url, headers=header, params=params)
@@ -164,9 +166,12 @@ class Scopus(object):
 
 
 class AbstractRetrieval(object):
-    """
 
     """
+    http://api.elsevier.com/documentation/AbstractRetrievalAPI.wadl
+    
+    """
+
     '''
     So it turns out that this Abstract request also returns a lot of other information,
     including title, author, publication, full bibliography, etc.
@@ -175,6 +180,12 @@ class AbstractRetrieval(object):
     '''
     def __init__(self, parent):
         self.parent = parent
+
+    def get_from_eid(self,eid):
+        retrieval_resp = self.parent.make_abstract_get_request(input_type='eid', input_id=eid)
+        import pdb
+        pdb.set_trace()
+        return self._abstract_from_json(retrieval_resp)
 
     def get_from_doi(self, doi):
         retrieval_resp = self.parent.make_abstract_get_request(input_type='doi', input_id=doi)

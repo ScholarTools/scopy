@@ -6,7 +6,12 @@ api = Scopus()
 
 #api.search('neuromodulation')
 
+#2-s2.0-0023137155
 results = api.search('PMID(3806812)')
+
+doc = results.entries[0]
+
+temp = api.abstract_retrieval.get_from_eid(doc.eid)
 
 
 doi = '10.1016/S0021-9290(01)00201-9'
@@ -27,6 +32,3 @@ except ReferencesNotFoundError as e:
 
 # TODO: figure out why this is returning None
 entry = api.article_retrieval.get_from_doi(doi)
-
-import pdb
-pdb.set_trace()

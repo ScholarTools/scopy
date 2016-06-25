@@ -61,14 +61,14 @@ class ResponseObject(object):
         #We don't call object construction methods on None values
         if value is None:
             return None
-        elif name in self.object_fields:
+        elif new_name in self.object_fields:
             #Here we return the value after passing it to a method
             #fh => function handle
             #
             #Only the value is explicitly passed in
             #Any other information needs to be explicitly bound
             #to the method
-            method_fh = self.object_fields[name]
+            method_fh = self.object_fields[new_name]
             return method_fh(value)
         else:
             return value
@@ -91,29 +91,62 @@ class ResponseObject(object):
         return []
 
 
-class SearchResults(object):
+class SearchResultsLinks(object):
     
     def __init__(self,json):
         
-        #dict_keys(['opensearch:totalResults', 'opensearch:startIndex', 'entry', 'link', 'opensearch:Query', 'opensearch:itemsPerPage'])
+        names = {'self':'self','first':'first','next':'next','last':'last'}
         
-        self.total_results = json.get('opensearch:totalResults')
-        self.items_per_page = json.get('opensearch:itemsPerPage')
+        self.json = json
+        self.self = None
+        self.first = None
+        self.next = None
+        self.last = None
+                
+        for temp in json:
+            if temp['@ref'] in names:
+                setattr(self,names[temp['@ref']],temp['@href'])       
+
+    def __repr__(self):
+        return pv([
+            'self',self.self,
+            'first', self.first,
+            'next',self.next,
+            'last',self.last])
+            
+
+class SearchResults(ResponseObject):
+    
+    """
+    Class contains results from a search.
+    """
+    
+    object_fields = {'links':SearchResultsLinks}    
         
+    renamed_fields = {
+        'total_results':'opensearch:totalResults',
+        'items_per_page':'opensearch:itemsPerPage',
+        'start_index':'opensearch:startIndex',
+        'query':'opensearch:Query',
+        'links':'link'}
+    
+    def __init__(self,json):
+        
+        super(SearchResults, self).__init__(json)
         entries = json.get('entry') #list       
-        
-        self.entries = [SearchEntry(x) for x in entries]        
-        
+        self.entries = [SearchResultEntry(x) for x in entries]        
 
-        #TODO: Is a SearchEntry different than a ScopusEntry
-        # KSA: No. They're the same.
+    def __repr__(self):
+        return pv([
+            'total_results',self.total_results,
+            'start_index',self.start_index,
+            'items_per_page',self.items_per_page,
+            'entries',cld(self.entries),
+            'links',cld(self.links)])
+    
+    #TODO: Bring in navigation        
 
-
-
-#JAH: Need to create a parent response object like in Mendeley
-#Don't assign everything
-
-class SearchEntryLinks(object):
+class SearchResultEntryLinks(object):
     
     def __init__(self, json):
         #super(SearchEntryLinks, self).__init__(json)
@@ -145,29 +178,47 @@ class SearchEntryLinks(object):
         #e.g. {'@ref': 'self', '@href': 'http://api.elsevier.com/content/abstract/scopus_id/0023137155', '@_fa': 'true'}        
         
     def __repr__(self):
-        return pv(['self',self.self,'author_affiliation',self.author_affiliation,'scopus',self.scopus,'scopus-cited_by',self.scopus_cited_by])
+        return pv([
+            'self',self.self,
+            'author_affiliation', self.author_affiliation,
+            'scopus', self.scopus,
+            'scopus-cited_by', self.scopus_cited_by])
 
 
-class SearchEntry(ResponseObject):
+class SearchResultEntry(ResponseObject):
     
     """
     It looks like the search entry is more minimal than information that can be obtained via other methods
+    
+    Attributes
+    ----------
+    creator : string
+        Author
+        
     """
-    
-    object_fields = {'link':SearchEntryLinks}    
-    
-    #TODO: Replace with relevant values for this class
-    #object_fields = {
-    #    'authors': Person.initialize_array,
-    #    'identifiers': DocumentIdentifiers}    
-    
+
+    #TODO: Support affiliation as an object
+    #TODO: Do we need to switch based on subtype?
+    object_fields = {'links': SearchResultEntryLinks}    
+        
     renamed_fields = {
-        'cover_date':'prism:coverDate',
-        'cited_by_count':'citedby-count',
-        'author_count':'author-count',
-        'pubmed_id':'pubmed-id',
-        'links':'link'}
-    
+        'aggregation_type': 'prism:aggregationType',
+        'author_count': 'author-count',
+        'cited_by_count': 'citedby-count',
+        'cover_date': 'prism:coverDate',
+        'cover_display_date' : 'prism:coverDisplayDate',
+        'creator' : 'dc:creator',
+        'description' : 'dc:description',
+        'issn' : 'prism:issn',
+        'issue' : 'prism:issueIdentifier',
+        'links': 'link',
+        'page_range' : 'prism:pageRange',
+        'publication' : 'prism:publicationName',
+        'pubmed_id': 'pubmed-id',
+        'source_id' : 'source-id',
+        'subtype_description' : 'subtypeDescription',
+        'volume' : 'prims:volume'}
+            
     def __init__(self, json):
         """
         Parameters
@@ -175,36 +226,36 @@ class SearchEntry(ResponseObject):
         json : dict
 
         """
-        super(SearchEntry, self).__init__(json)
+        super(SearchResultEntry, self).__init__(json)
 
     @classmethod
     def fields(cls):
-        return ['eid']
-
-
-        #TODO: We should just store the json, and then retrieve these as needed by the user
-        #self.pubmed_id = json.get('pubmed-id')
-        #self.eid = json.get('eid')
-        #self.link = json.get('link')      
-        #Links
-        #-----
-
-        
-        #???? What does dc stand for?
-        #What is @_fa??????
-        '''
-        dict_keys(['prism:coverDate', 'citedby-count', 'pubmed-id', 'link', 
-        'eid', 'prism:aggregationType', '@_fa', 'affiliation', 'subtype', 
-        'prism:coverDisplayDate', 'prism:pageRange', 'prism:issn', 'dc:description', 
-        'prism:publicationName', 'prism:issueIdentifier', 'dc:creator', 
-        'subtypeDescription', 'source-id', 'prism:volume', 
-        'prism:doi', 'author-count', 'prism:url', 
-        'dc:identifier', 'author', 'dc:title', 'intid'])   
-        '''
-        
+        return ['eid','affiliation','subtype']
+   
     def __repr__(self):
-        return pv(['cited_by_count',self.cited_by_count,
-        'eid',self.eid])
+        return pv([
+        'description',self.description,        
+        'aggregation_type',self.aggregation_type,
+        'subtype',self.subtype,
+        'subtype_description',self.subtype_description,
+        'creator',self.creator,
+        'affiliation',self.affiliation,
+        'publication',self.publication,
+        'source_id',self.source_id,
+        'volume',self.volume,
+        'issue',self.issue,
+        'page_range',self.page_range,
+        'cited_by_count',self.cited_by_count,
+        'author_count',self.author_count,
+        'pubmed_id',self.pubmed_id,
+        'issn',self.issn,
+        'eid',self.eid,
+        'links',cld(self.links),
+        'cover_display_date',self.cover_display_date,
+        'cover_date',self.cover_date])
+        
+    def get_abstract(self):
+        pass        
 
 class ScopusRef(object):
     def __init__(self, json):
