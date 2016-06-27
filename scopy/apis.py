@@ -154,6 +154,8 @@ class Scopus(object):
         if not resp.ok:
             if resp.status_code == 401:
                 raise ConnectionRefusedError('Client IP Address does not resolve to an account')
+            print(resp.text)
+            print(resp.status_code)
             raise ConnectionError('Failed to connect to Scopus')
            
         return models.SearchResults(resp.json()['search-results'])
@@ -181,9 +183,13 @@ class AbstractRetrieval(object):
         return self._abstract_from_json(retrieval_resp)
 
     def get_from_pii(self, pii):
-        url = self.parent.base_url + '/abstract/pii/' + pii
-        retrieval_resp = self.parent.make_abstract_get_request(url=url)
+        retrieval_resp = self.parent.make_abstract_get_request(input_type='pii', input_id=pii)
         return self._abstract_from_json(retrieval_resp)
+
+    def get_from_eid(self, eid):
+        retrieval_resp = self.parent.make_abstract_get_request(input_type='eid', input_id=eid)
+        return self._abstract_from_json(retrieval_resp)
+
 
     def _abstract_from_json(self, json):
         core_data = json.get('coredata')
@@ -240,14 +246,15 @@ class ArticleRetrieval(object):
         params = {}
 
         resp = requests.get(url, headers=header, params=params)
-        import pdb
-        pdb.set_trace()
 
         # Verification of connection
         if not resp.ok:
             if resp.status_code in (401, 403):
                 raise ConnectionRefusedError('Client IP Address does not resolve to an account')
-            raise ConnectionError('Failed to connect to Scopus')
+            if resp.status_code == 400:
+                raise AuthenticationError('Full article access limited by Scopus. May be available elsewhere.')
+            else:
+                raise ConnectionError('Failed to connect to Scopus')
 
         retrieval_resp = resp.json().get('full-text-retrieval-response')
 
@@ -303,15 +310,15 @@ class BibliographyRetrieval(object):
     def get_from_pii(self, pii, return_json=False):
         return self._generic_retrieval(input_id=pii, input_type='pii', return_json=return_json)
 
+    def get_from_eid(self, eid, return_json=False):
+        return self._generic_retrieval(input_id=eid, input_type='eid', return_json=return_json)
+
     def get_from_pubmed(self, pubmed_id, return_json=False):
         return self._generic_retrieval(input_id=pubmed_id, input_type='pubmed_id', return_json=return_json)
 
     def _generic_retrieval(self, input_id, input_type, return_json):
         retrieval_resp = self.parent.make_abstract_get_request(input_type=input_type, input_id=input_id)
         ref_list = self._refs_from_json(retrieval_resp)
-
-        import pdb
-        pdb.set_trace()
 
         if ref_list is None:
             return None
@@ -339,7 +346,7 @@ class BibliographyRetrieval(object):
         if ref_count is not None:
             if int(ref_count) == 0:
                 raise ReferencesNotFoundError('No references found. Possibly due to zero search results.')
-        else:
-            next_level = next_level.get('reference')
+
+        next_level = next_level.get('reference')
 
         return next_level

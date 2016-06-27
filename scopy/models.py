@@ -100,7 +100,8 @@ class SearchResults(object):
         self.total_results = json.get('opensearch:totalResults')
         self.items_per_page = json.get('opensearch:itemsPerPage')
         
-        entries = json.get('entry') #list       
+        entries = json.get('entry') #list
+        self.raw_entries = entries
         
         self.entries = [SearchEntry(x) for x in entries]        
         
@@ -163,6 +164,7 @@ class SearchEntry(ResponseObject):
     
     renamed_fields = {
         'cover_date':'prism:coverDate',
+        'title':'dc:title',
         'cited_by_count':'citedby-count',
         'author_count':'author-count',
         'pubmed_id':'pubmed-id',
@@ -179,7 +181,7 @@ class SearchEntry(ResponseObject):
 
     @classmethod
     def fields(cls):
-        return ['eid']
+        return ['eid', 'dc:title', 'citedby_count']
 
 
         #TODO: We should just store the json, and then retrieve these as needed by the user
@@ -190,7 +192,6 @@ class SearchEntry(ResponseObject):
         #-----
 
         
-        #???? What does dc stand for?
         #What is @_fa??????
         '''
         dict_keys(['prism:coverDate', 'citedby-count', 'pubmed-id', 'link', 
@@ -204,7 +205,8 @@ class SearchEntry(ResponseObject):
         
     def __repr__(self):
         return pv(['cited_by_count',self.cited_by_count,
-        'eid',self.eid])
+        'eid',self.eid, 'title', self.title])
+
 
 class ScopusRef(object):
     def __init__(self, json):
