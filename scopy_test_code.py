@@ -13,9 +13,6 @@ eid_search = api.search('eid(%s)' % first.eid)
 eid_bib = api.bibliography_retrieval.get_from_eid(first.eid)
 
 
-import pdb
-pdb.set_trace()
-
 results = api.search('PMID(3806812)')
 
 doc = results.entries[0]
@@ -30,7 +27,7 @@ print(abs)
 #refs = api.bibliography_retrieval.get_from_doi(doi)
 
 pubmed_id = '11826063'
-pubmed_id = '3806812' #Doesn't work! perhaps via search?
+#pubmed_id = '3806812' #Doesn't work! perhaps via search?
 
 try:
     pubmed_refs = api.bibliography_retrieval.get_from_pubmed(pubmed_id)
