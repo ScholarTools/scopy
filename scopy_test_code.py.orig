@@ -16,6 +16,7 @@ eid_bib = api.bibliography_retrieval.get_from_eid(first.eid)
 import pdb
 pdb.set_trace()
 
+#2-s2.0-0023137155
 results = api.search('PMID(3806812)')
 
 doc = results.entries[0]
@@ -45,4 +46,14 @@ except Exception as exe:
     print(str(exe))
 
 # TODO: figure out why this is returning None
+<<<<<<< HEAD
+try:
+    entry = api.article_retrieval.get_from_doi(doi)
+except Exception as exe:
+    print(str(exe))
+
+import pdb
+pdb.set_trace()
+=======
 entry = api.article_retrieval.get_from_doi(doi)
+>>>>>>> 2a72af11762f3d2a1a050d77fd28e28705351096

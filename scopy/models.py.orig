@@ -97,6 +97,14 @@ class SearchResultsLinks(object):
         
         names = {'self':'self','first':'first','next':'next','last':'last'}
         
+        self.total_results = json.get('opensearch:totalResults')
+        self.items_per_page = json.get('opensearch:itemsPerPage')
+        
+        entries = json.get('entry') #list
+        self.raw_entries = entries
+        
+        self.entries = [SearchEntry(x) for x in entries]        
+        
         self.json = json
         self.self = None
         self.first = None
@@ -202,6 +210,13 @@ class SearchResultEntry(ResponseObject):
     object_fields = {'links': SearchResultEntryLinks}    
         
     renamed_fields = {
+        'cover_date':'prism:coverDate',
+        'title':'dc:title',
+        'cited_by_count':'citedby-count',
+        'author_count':'author-count',
+        'pubmed_id':'pubmed-id',
+        'links':'link'}
+
         'aggregation_type': 'prism:aggregationType',
         'author_count': 'author-count',
         'cited_by_count': 'citedby-count',
@@ -230,6 +245,32 @@ class SearchResultEntry(ResponseObject):
 
     @classmethod
     def fields(cls):
+        return ['eid', 'dc:title', 'citedby_count']
+
+
+        #TODO: We should just store the json, and then retrieve these as needed by the user
+        #self.pubmed_id = json.get('pubmed-id')
+        #self.eid = json.get('eid')
+        #self.link = json.get('link')      
+        #Links
+        #-----
+
+        
+        #What is @_fa??????
+        '''
+        dict_keys(['prism:coverDate', 'citedby-count', 'pubmed-id', 'link', 
+        'eid', 'prism:aggregationType', '@_fa', 'affiliation', 'subtype', 
+        'prism:coverDisplayDate', 'prism:pageRange', 'prism:issn', 'dc:description', 
+        'prism:publicationName', 'prism:issueIdentifier', 'dc:creator', 
+        'subtypeDescription', 'source-id', 'prism:volume', 
+        'prism:doi', 'author-count', 'prism:url', 
+        'dc:identifier', 'author', 'dc:title', 'intid'])   
+        '''
+        
+    def __repr__(self):
+        return pv(['cited_by_count',self.cited_by_count,
+        'eid',self.eid, 'title', self.title])
+
         return ['eid','affiliation','subtype']
    
     def __repr__(self):
@@ -256,7 +297,6 @@ class SearchResultEntry(ResponseObject):
         
     def get_abstract(self):
         pass        
-
 
 class ScopusRef(object):
     def __init__(self, json):
