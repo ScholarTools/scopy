@@ -12,6 +12,7 @@ from .utils import get_truncated_display_string as td
 from .utils import get_list_class_display as cld
 from .utils import property_values_to_string as pv
 
+from pypub.scrapers.base_objects import *
 
 class ResponseObject(object):
     # I made this a property so that the user could change this processing
@@ -258,15 +259,10 @@ class SearchResultEntry(ResponseObject):
         pass        
 
 
-class ScopusRef(object):
+class ScopusRef(BaseRef):
     def __init__(self, json):
+        super().__init__()
         self.authors = []
-        self.title = None
-        self.volume = None
-        self.issue = None
-        self.date = None
-        self.pages = None
-        self.publication = None
 
         self._populate_fields(json)
 
@@ -340,26 +336,18 @@ class ScopusRef(object):
         self.publication = info.get('ref-sourcetitle')
 
 
-class ScopusEntry(object):
+class ScopusEntry(BaseEntry):
     """
     These are populated by search results. Each result contains these fields.
 
     """
 
     def __init__(self, json):
-        self.doi = None
-        self.eid = None
-        self.pii = None
-        self.title = None
-        self.publisher = None
+        super().__init__()
+
         self.type = None
         self.issn = None
-        self.volume = None
-        self.issue = None
-        self.pages = None
-        self.date = None
         self.authors = []
-        self.abstract = None
         self.link = None
         self.article = None
 
@@ -375,7 +363,7 @@ class ScopusEntry(object):
         self.eid = coredata.get('eid')
         self.pii = coredata.get('pii')
         self.title = coredata.get('dc:title')
-        self.publisher = coredata.get('prism:publicationName')
+        self.publication = coredata.get('prism:publicationName')
         self.type = coredata.get('prism:aggregationType')
         self.issn = coredata.get('prism:issn')
         self.volume = coredata.get('prism:volume')
@@ -386,14 +374,21 @@ class ScopusEntry(object):
 
         # Get authors
         author_section = coredata.get('dc:creator')
+        if isinstance(author_section, dict) and 'author' in author_section.keys():
+            author_section = author_section.get('author')
+
         if author_section is not None:
             if isinstance(author_section, list):
                 for author in author_section:
                     name = author.get('$')
+                    if name is None:
+                        name = author.get('ce:indexed-name')
                     if name is not None:
                         self.authors.append(name)
             else:
                 name = author_section.get('$')
+                if name is None:
+                    name = author_section.get('ce:indexed-name')
                 if name is not None:
                     self.authors.append(name)
 

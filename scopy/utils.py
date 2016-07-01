@@ -56,3 +56,21 @@ def get_truncated_display_string(input_string, max_length=50):
         return input_string[:max_length] + '...'
     else:
         return input_string
+
+def convert_to_dict(obj):
+    obj = obj.__dict__
+    for k in obj:
+        if isinstance(obj[k], list):
+            try:
+                obj[k] = [convert_to_dict(x) for x in obj[k]]
+            except AttributeError:
+                pass
+    return obj
+
+
+def refs_to_list(refs):
+    ref_list = []
+    for ref in refs:
+        ref_list.append(convert_to_dict(ref))
+    return ref_list
+

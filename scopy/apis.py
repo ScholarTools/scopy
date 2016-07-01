@@ -27,6 +27,8 @@ import requests
 from . import models
 from . import config
 from scopy.scopy_errors import *
+from pypub.paper_info import PaperInfo
+import scopy.utils as utils
 
 
 class Scopus(object):
@@ -50,6 +52,8 @@ class Scopus(object):
         self.authentication = Authentication(self)
 
         self.bibliography_retrieval = BibliographyRetrieval(self)
+        self.entry_retrieval = EntryRetrieval(self)
+        self.get_all_data = GetAllData(self)
 
     def _get_default_headers(self):
         header = dict()
@@ -92,8 +96,9 @@ class Scopus(object):
             if resp.status_code == 401:
                 raise ConnectionRefusedError('Client IP Address does not resolve to an account')
             raise ConnectionError('Failed to connect to Scopus')
-        
-        retrieval_resp = resp.json()['abstracts-retrieval-response']
+
+        resp_json = resp.json()
+        retrieval_resp = resp_json.get('abstracts-retrieval-response')
 
         return retrieval_resp
 
@@ -164,7 +169,6 @@ class Scopus(object):
         
         #entry_list = results['entry']
 
-        #print('Total results: ' + results['opensearch:totalResults'])
 
 
 class AbstractRetrieval(object):
@@ -185,8 +189,6 @@ class AbstractRetrieval(object):
 
     def get_from_eid(self,eid):
         retrieval_resp = self.parent.make_abstract_get_request(input_type='eid', input_id=eid)
-        import pdb
-        pdb.set_trace()
         return self._abstract_from_json(retrieval_resp)
 
     def get_from_doi(self, doi):
@@ -197,8 +199,8 @@ class AbstractRetrieval(object):
         retrieval_resp = self.parent.make_abstract_get_request(input_type='pii', input_id=pii)
         return self._abstract_from_json(retrieval_resp)
 
-    def get_from_eid(self, eid):
-        retrieval_resp = self.parent.make_abstract_get_request(input_type='eid', input_id=eid)
+    def get_from_pubmed(self, pubmed_id):
+        retrieval_resp = self.parent.make_abstract_get_request(input_type='pubmed_id', input_id=pubmed_id)
         return self._abstract_from_json(retrieval_resp)
 
 
@@ -222,16 +224,6 @@ class ArticleRetrieval(object):
         return self._generic_retrieval(input_id=doi, input_type='doi', return_json=return_json)
         
     def get_from_eid(self,eid,return_json=False):
-        """
-        Parameters
-        ----------
-        eid : Elsevier ID
-
-        Returns
-        -------
-        json or models.ScopusEntry        
-        """
-        
         return self._generic_retrieval(input_id=eid, input_type='eid', return_json=return_json)
 
     def get_from_pii(self, pii, return_json=False):
@@ -342,7 +334,8 @@ class BibliographyRetrieval(object):
                 ref_object_list.append(models.ScopusRef(ref_json))
             return ref_object_list
 
-    def _refs_from_json(self, json):
+    @classmethod
+    def _refs_from_json(cls, json):
         # Descend through JSON tree to get references list
         # At each step, need to make sure that the level exists.
         # Otherwise, return None.
@@ -353,11 +346,86 @@ class BibliographyRetrieval(object):
             next_level = next_level.get(levels[x])
             x += 1
 
-        ref_count = next_level.get('@refcount')
-        if ref_count is not None:
-            if int(ref_count) == 0:
-                raise ReferencesNotFoundError('No references found. Possibly due to zero search results.')
+        if next_level is not None:
+            ref_count = next_level.get('@refcount')
+            if ref_count is not None:
+                if int(ref_count) == 0:
+                    raise ReferencesNotFoundError('No references found. Possibly due to zero search results.')
 
-        next_level = next_level.get('reference')
+            next_level = next_level.get('reference')
 
         return next_level
+
+
+class EntryRetrieval(object):
+    """
+    http://api.elsevier.com/documentation/AbstractRetrievalAPI.wadl
+
+    """
+    def __init__(self, parent):
+        self.parent = parent
+
+    def get_from_eid(self,eid):
+        retrieval_resp = self.parent.make_abstract_get_request(input_type='eid', input_id=eid)
+        return models.ScopusEntry(retrieval_resp)
+
+    def get_from_doi(self, doi):
+        retrieval_resp = self.parent.make_abstract_get_request(input_type='doi', input_id=doi)
+        return models.ScopusEntry(retrieval_resp)
+
+    def get_from_pii(self, pii):
+        retrieval_resp = self.parent.make_abstract_get_request(input_type='pii', input_id=pii)
+        return models.ScopusEntry(retrieval_resp)
+
+    def get_from_pubmed(self, pubmed_id):
+        retrieval_resp = self.parent.make_abstract_get_request(input_type='pubmed_id', input_id=pubmed_id)
+        return models.ScopusEntry(retrieval_resp)
+
+
+class GetAllData(object):
+    """
+    Returns both the entry information and the full references (if available).
+    """
+    def __init__(self, parent):
+        self.parent = parent
+
+    def get_from_eid(self,eid):
+        retrieval_resp = self.parent.make_abstract_get_request(input_type='eid', input_id=eid)
+        return self._construct_object(retrieval_resp)
+
+    def get_from_doi(self, doi):
+        retrieval_resp = self.parent.make_abstract_get_request(input_type='doi', input_id=doi)
+        return self._construct_object(retrieval_resp)
+
+    def get_from_pii(self, pii):
+        retrieval_resp = self.parent.make_abstract_get_request(input_type='pii', input_id=pii)
+        return self._construct_object(retrieval_resp)
+
+    def get_from_pubmed(self, pubmed_id):
+        retrieval_resp = self.parent.make_abstract_get_request(input_type='pubmed_id', input_id=pubmed_id)
+        return self._construct_object(retrieval_resp)
+
+    def _construct_object(self, json):
+        # TODO: Format into paper_info object
+        if json is None:
+            return None
+
+        entry = models.ScopusEntry(json=json)
+
+        # Get references from the API response
+        ref_list = BibliographyRetrieval._refs_from_json(json=json)
+        references = []
+        if ref_list is not None:
+            for ref_json in ref_list:
+                references.append(models.ScopusRef(ref_json))
+
+        paper_info = PaperInfo()
+        #paper_info.entry = utils.convert_to_dict(entry)
+        #paper_info.references = utils.refs_to_list(references)
+        paper_info.entry = entry
+        paper_info.references = references
+
+        paper_info.doi = getattr(entry, 'doi', None)
+        paper_info.make_interface_object()
+
+        return paper_info
