@@ -95,7 +95,9 @@ class Scopus(object):
         if not resp.ok:
             if resp.status_code == 401:
                 raise ConnectionRefusedError('Client IP Address does not resolve to an account')
-            raise ConnectionError('Failed to connect to Scopus')
+            if resp.status_code == 404:
+                raise LookupError('Could not find DOI on Scopus.')
+            raise ConnectionError('Failed to connect to Scopus with status code %d' % resp.status_code)
 
         resp_json = resp.json()
         retrieval_resp = resp_json.get('abstracts-retrieval-response')
