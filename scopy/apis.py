@@ -28,6 +28,7 @@ from . import models
 from . import config
 from scopy.scopy_errors import *
 from pypub.paper_info import PaperInfo
+from pypub.pypub_errors import *
 import scopy.utils as utils
 
 
@@ -408,7 +409,6 @@ class GetAllData(object):
         return self._construct_object(retrieval_resp)
 
     def _construct_object(self, json):
-        # TODO: Format into paper_info object
         if json is None:
             return None
 
@@ -428,6 +428,8 @@ class GetAllData(object):
         paper_info.references = references
 
         paper_info.doi = getattr(entry, 'doi', None)
-        paper_info.make_interface_object()
+        paper_info.pdf_link = None
+        paper_info.publisher_interface = None
+        paper_info.scraper_obj = None
 
         return paper_info

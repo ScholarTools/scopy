@@ -384,13 +384,17 @@ class ScopusEntry(BaseEntry):
                     if name is None:
                         name = author.get('ce:indexed-name')
                     if name is not None:
-                        self.authors.append(name)
+                        auth = BaseAuthor()
+                        auth.name = name
+                        self.authors.append(auth)
             else:
                 name = author_section.get('$')
                 if name is None:
                     name = author_section.get('ce:indexed-name')
                 if name is not None:
-                    self.authors.append(name)
+                    auth = BaseAuthor()
+                    auth.name = name
+                    self.authors.append(auth)
 
         # Get article links
         links = coredata.get('link')
